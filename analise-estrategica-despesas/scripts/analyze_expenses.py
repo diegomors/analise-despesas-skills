@@ -404,6 +404,7 @@ class ExpenseAnalyzer:
                     "comprometido_futuro": round(r["valor"] * remaining, 2),
                     "categoria": r.get("categoria", ""),
                     "banco": r.get("banco", ""),
+                    "cartao": r.get("cartao", ""),
                     "periodo": r.get("periodo_referencia", ""),
                 })
 
@@ -412,7 +413,7 @@ class ExpenseAnalyzer:
         overview = self._compute_overview()
         for bank in overview["banks_missing_latest"]:
             bank_rows = [r for r in self.rows if r.get("banco") == bank and r["valor"] > 0]
-            # Group by (descricao, valor) and keep only the most recent parcela
+            # Group by (descricao, parcela_total, cartao, valor) and keep only the most recent parcela
             best = {}
             for r in bank_rows:
                 parcela = r.get("parcela", "")
@@ -426,7 +427,10 @@ class ExpenseAnalyzer:
                 remaining = total_p - current
                 if remaining <= 0:
                     continue
-                key = (r.get("descricao", "").strip(), round(r["valor"], 2))
+                # Key by (desc, total installments, card, rounded valor) — same plan across
+                # months, absorbing R$0.01 rounding differences without losing distinction
+                # between different-value purchases on the same card.
+                key = (r.get("descricao", "").upper().strip(), total_p, r.get("cartao", ""), round(r["valor"]))
                 if key not in best or current > best[key]["parcela_atual"]:
                     best[key] = {
                         "descricao": r.get("descricao", "").strip(),
@@ -437,6 +441,7 @@ class ExpenseAnalyzer:
                         "comprometido_futuro": round(r["valor"] * remaining, 2),
                         "categoria": r.get("categoria", ""),
                         "banco": bank,
+                        "cartao": r.get("cartao", ""),
                         "periodo": r.get("periodo_referencia", ""),
                         "nota": f"Dado do período {r.get('periodo_referencia', '?')} — pode já ter avançado",
                     }
@@ -446,7 +451,7 @@ class ExpenseAnalyzer:
         # (most recent / most advanced parcela)
         best_by_key = {}
         for inst in active_installments:
-            key = (inst["descricao"], inst["valor_mensal"], inst["banco"])
+            key = (inst["descricao"].upper().strip(), inst["valor_mensal"], inst["banco"], inst.get("cartao", ""))
             if key not in best_by_key or inst["restantes"] < best_by_key[key]["restantes"]:
                 best_by_key[key] = inst
         unique = sorted(best_by_key.values(), key=lambda x: -x["comprometido_futuro"])
