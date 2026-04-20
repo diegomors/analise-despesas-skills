@@ -430,7 +430,7 @@ class ExpenseAnalyzer:
                 # Key by (desc, total installments, card, rounded valor) — same plan across
                 # months, absorbing R$0.01 rounding differences without losing distinction
                 # between different-value purchases on the same card.
-                key = (r.get("descricao", "").strip(), total_p, r.get("cartao", ""), round(r["valor"]))
+                key = (r.get("descricao", "").upper().strip(), total_p, r.get("cartao", ""), round(r["valor"]))
                 if key not in best or current > best[key]["parcela_atual"]:
                     best[key] = {
                         "descricao": r.get("descricao", "").strip(),
@@ -451,7 +451,7 @@ class ExpenseAnalyzer:
         # (most recent / most advanced parcela)
         best_by_key = {}
         for inst in active_installments:
-            key = (inst["descricao"], inst["valor_mensal"], inst["banco"], inst.get("cartao", ""))
+            key = (inst["descricao"].upper().strip(), inst["valor_mensal"], inst["banco"], inst.get("cartao", ""))
             if key not in best_by_key or inst["restantes"] < best_by_key[key]["restantes"]:
                 best_by_key[key] = inst
         unique = sorted(best_by_key.values(), key=lambda x: -x["comprometido_futuro"])
